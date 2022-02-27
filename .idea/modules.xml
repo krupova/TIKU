@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/tiku-client/tiku-client.iml" filepath="$PROJECT_DIR$/tiku-client/tiku-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/tiku-core/tiku-core.iml" filepath="$PROJECT_DIR$/tiku-core/tiku-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/tiku-network.iml" filepath="$PROJECT_DIR$/.idea/tiku-network.iml" />
+      <module fileurl="file://$PROJECT_DIR$/tiku-server/tiku-server.iml" filepath="$PROJECT_DIR$/tiku-server/tiku-server.iml" />
+    </modules>
+  </component>
+</project>

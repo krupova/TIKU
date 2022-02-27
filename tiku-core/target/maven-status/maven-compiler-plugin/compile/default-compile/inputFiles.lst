@@ -1,0 +1,12 @@
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/model/MessageData.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/logging/Logger.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/networking/TikuHttpClient.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/networking/SocketServer.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/model/MessageType.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/model/TikuNode.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/model/CommunicationMessage.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/dh/DiffieHellmanService.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/model/TikuMessageTypeParams.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/networking/SocketClient.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/encryption/EncryptionService.java
+/home/martin/IdeaProjects/tiku-core/src/main/java/sk/tiku/core/logging/LogRetention.java
