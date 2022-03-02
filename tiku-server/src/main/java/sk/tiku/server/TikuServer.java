@@ -95,6 +95,7 @@ public class TikuServer {
             //GET DECRYPTION KEY
             KeyAgreement keyAgreement = DiffieHellmanService.initializeAgreement(dhKeyPair.getPrivate());
             PublicKey publicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(message.getPubkey()));
+            System.out.println(publicKey);
             try {
                 keyAgreement.doPhase(publicKey, true);
                 byte[] encryptionKey = keyAgreement.generateSecret();
@@ -142,15 +143,17 @@ public class TikuServer {
         //FIXME: Osetrit nejak aby bolo zarucene, ze nemoze niekto odhlasit len tak hocijakeho klienta
         // dalo by sa to mozno spravit tak, ze login okrem vlastneho verejneho kluca odpovie aj nejakym nahodne
         // vygenerovanym tokenom (ktory uz bude zasifrovany). Pre logout ho bude musiet node poslat
+        //desifrovat a odobrat klienta z mapy
         String nodeId = String.format(
                 "%s_%5d",
-                data.getPayload().get(TikuMessageTypeParams.LOGIN_ARG_HOST),
-                Integer.parseInt(data.getPayload().get(TikuMessageTypeParams.LOGIN_ARG_PORT))
+                data.getPayload().get(TikuMessageTypeParams.LOGOUT_ARG_HOST),
+                Integer.parseInt(data.getPayload().get(TikuMessageTypeParams.LOGOUT_ARG_PORT))
         );
         loggedInClients.remove(nodeId);
         return null;
     }
 
+    //metoda da klientov, ktory su schopni komunikovat
     private String getRelay(MessageData data) {
         //FIXME: Naimplementovat
         return null;

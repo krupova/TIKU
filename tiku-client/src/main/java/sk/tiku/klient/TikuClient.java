@@ -143,16 +143,23 @@ public class TikuClient {
                 //odpoved treba cibulovo desifrovat
                 //}
             } while (!nextLine.equalsIgnoreCase("q"));
-            socketServer.stop();
+            //LOGOUT
             //FIXME: 1. Logout from tiku-server - sifrovat pomocou encryption service
+            //zasifrovat a odoslat spravu logout na server
             MessageData logoutMessageData = new MessageData();
             logoutMessageData.setType(MessageType.LOGOUT);
             logoutMessageData.setPayload(Map.of(
-                    TikuMessageTypeParams.LOGIN_ARG_HOST, socketServer.getHost(),
-                    TikuMessageTypeParams.LOGIN_ARG_PORT, String.valueOf(this.localPort),
-                    TikuMessageTypeParams.LOGIN_ARG_PUBKEY, Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded())
+                    TikuMessageTypeParams.LOGOUT_ARG_HOST, socketServer.getHost(),
+                    TikuMessageTypeParams.LOGOUT_ARG_PORT, String.valueOf(this.localPort)
             ));
             serializedMessage = serialize(logoutMessageData);
+            String encryptedMessage = encryptionService.encrypt(serializedMessage, serverEncryptionKey);
+
+            //LOGOUT EVENT IS ENCRYPTED
+            String pubKey = Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded());
+            socketClient.send(this.serverHost, this.serverPort, new CommunicationMessage(encryptedMessage, pubKey));
+            socketServer.stop();
+
         } catch (ParseException e) {
             System.out.println(e.getMessage());
             formatter.printHelp("tiku-server", options);
@@ -204,13 +211,16 @@ public class TikuClient {
         }
     }
 
+    //fetch - give client list
     private String fetch(MessageData data, byte[] encryptionKey) {
         //FIXME
         return null;
     }
 
+    //relayNext - give next client in list
     private String relayNext(MessageData data, byte[] encryptionKey) {
         //FIXME
+
         return null;
     }
 
