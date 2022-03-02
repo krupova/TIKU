@@ -21,7 +21,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class TikuClient {
-    private KeyPair localDhKeyPair;
+    private KeyPair localDhKeyPair; //klient + klienti - len s inymi klientmi
+    private KeyPair serverDhKeyPair; //klient + server - len so serverom
     private final EncryptionService encryptionService = new EncryptionService(true);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private int localPort;
@@ -88,6 +89,8 @@ public class TikuClient {
 
             //GENERATE DH KEY PAIR FOR USE WITH OTHER NODES
             localDhKeyPair = DiffieHellmanService.generateKeyPair(null);
+            //GENERATE DH KEY PAIR FOR USE WITH SERVER
+            serverDhKeyPair = DiffieHellmanService.generateKeyPair(null);
             //START LOCAL NODE LISTENING
             SocketServer socketServer = new SocketServer(this.localPort);
             socketServer.start(this::onMessage);
@@ -100,14 +103,15 @@ public class TikuClient {
             loginMessageData.setPayload(Map.of(
                     TikuMessageTypeParams.LOGIN_ARG_HOST, socketServer.getHost(),
                     TikuMessageTypeParams.LOGIN_ARG_PORT, String.valueOf(this.localPort),
-                    TikuMessageTypeParams.LOGIN_ARG_PUBKEY, Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded())
+                    TikuMessageTypeParams.LOGIN_ARG_PUBKEY, Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded())
             ));
             String serializedMessage = serialize(loginMessageData);
 
             //LOGIN EVENT IS NOT ENCRYPTED
             String response = socketClient.send(this.serverHost, this.serverPort, new CommunicationMessage(serializedMessage, null));
             //FIXME: Error handling
-            this.serverEncryptionKey = getServerEncryptionKey(response);
+            setupServerEncryptionKey(response);
+            //this.serverEncryptionKey = getServerEncryptionKey(response);
 
             Scanner scanner = new Scanner(System.in);
             String nextLine;
@@ -150,14 +154,16 @@ public class TikuClient {
             logoutMessageData.setType(MessageType.LOGOUT);
             logoutMessageData.setPayload(Map.of(
                     TikuMessageTypeParams.LOGOUT_ARG_HOST, socketServer.getHost(),
-                    TikuMessageTypeParams.LOGOUT_ARG_PORT, String.valueOf(this.localPort)
+                    TikuMessageTypeParams.LOGOUT_ARG_PORT, String.valueOf(this.localPort),
+                    TikuMessageTypeParams.LOGOUT_ARG_PUBKEY, Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded())
             ));
             serializedMessage = serialize(logoutMessageData);
             String encryptedMessage = encryptionService.encrypt(serializedMessage, serverEncryptionKey);
 
             //LOGOUT EVENT IS ENCRYPTED
-            String pubKey = Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded());
+            String pubKey = Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded());
             socketClient.send(this.serverHost, this.serverPort, new CommunicationMessage(encryptedMessage, pubKey));
+
             socketServer.stop();
 
         } catch (ParseException e) {
@@ -168,13 +174,15 @@ public class TikuClient {
 
     }
 
-    private byte[] getServerEncryptionKey(String response) {
+    private void setupServerEncryptionKey(String response) {
         try {
             PublicKey serverPublicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(response));
             KeyPair keyPairForServer = DiffieHellmanService.generateKeyPair(((DHPublicKey) serverPublicKey).getParams());
             KeyAgreement serverKeyAgreement = DiffieHellmanService.initializeAgreement(keyPairForServer.getPrivate());
             serverKeyAgreement.doPhase(keyPairForServer.getPublic(), true);
-            return serverKeyAgreement.generateSecret();
+            serverDhKeyPair = DiffieHellmanService.generateKeyPair(null);
+            serverEncryptionKey = serverKeyAgreement.generateSecret();
+            //return serverKeyAgreement.generateSecret();
         } catch (InvalidKeyException e) {
             Logger.getInstance().error("Could not agree on server key", e);
             throw new RuntimeException(e);

@@ -95,7 +95,7 @@ public class TikuServer {
             //GET DECRYPTION KEY
             KeyAgreement keyAgreement = DiffieHellmanService.initializeAgreement(dhKeyPair.getPrivate());
             PublicKey publicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(message.getPubkey()));
-            System.out.println(publicKey);
+            //System.out.println(publicKey);
             try {
                 keyAgreement.doPhase(publicKey, true);
                 byte[] encryptionKey = keyAgreement.generateSecret();

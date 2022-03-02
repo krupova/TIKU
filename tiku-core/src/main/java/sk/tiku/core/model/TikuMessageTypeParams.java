@@ -26,4 +26,9 @@ public class TikuMessageTypeParams {
      * Logout argument - node port
      */
     public static final String LOGOUT_ARG_PORT = "LOGOUT_ARG_PORT";
+
+    /**
+     * Logout argument - public key
+     */
+    public static final String LOGOUT_ARG_PUBKEY = "LOGOUT_ARG_PUBKEY";
 }
