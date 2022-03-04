@@ -180,7 +180,8 @@ public class TikuClient {
             KeyPair keyPairForServer = DiffieHellmanService.generateKeyPair(((DHPublicKey) serverPublicKey).getParams());
             KeyAgreement serverKeyAgreement = DiffieHellmanService.initializeAgreement(keyPairForServer.getPrivate());
             serverKeyAgreement.doPhase(keyPairForServer.getPublic(), true);
-            serverDhKeyPair = DiffieHellmanService.generateKeyPair(null);
+            serverDhKeyPair = keyPairForServer;
+            //serverDhKeyPair = DiffieHellmanService.generateKeyPair(null);
             serverEncryptionKey = serverKeyAgreement.generateSecret();
             //return serverKeyAgreement.generateSecret();
         } catch (InvalidKeyException e) {

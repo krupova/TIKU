@@ -24,7 +24,9 @@ public class TikuServer {
 
     public static void main(String[] args) {
         new TikuServer().run(args);
+
     }
+
 
     public void run(String[] args) {
 
@@ -115,7 +117,8 @@ public class TikuServer {
             return switch (data.getType()) {
                 case LOGIN -> loginClient(data);
                 case LOGOUT -> logoutClient(data);
-                case GET_RELAY -> getRelay(data);
+                case GET_RELAY -> getRelay();
+                //case GET_RELAY -> getRelay(data);
                 default -> throw new IllegalStateException("Unknown message type: " + data);
             };
         } catch (JsonProcessingException e) {
@@ -135,6 +138,7 @@ public class TikuServer {
         //ADD NODE TO MAP
         String nodeId = String.format("%s_%5d", tn.getHost(), tn.getPort());
         loggedInClients.put(nodeId, tn);
+        getRelay();
         return Base64.getEncoder().encodeToString(dhKeyPair.getPublic().getEncoded());
     }
 
@@ -154,9 +158,32 @@ public class TikuServer {
     }
 
     //metoda da klientov, ktory su schopni komunikovat
-    private String getRelay(MessageData data) {
+    //MessageData data ako parameter
+    private String getRelay() {
         //FIXME: Naimplementovat
+        String message = "";
+        String node = "";
+        for (TikuNode i : loggedInClients.values()){
+//            System.out.println(i.getHost());//            System.out.println(i.getPort());//            System.out.println(i.getPubKey());
+            //DVA SPOSOBY
+            //oddelovac parametrov = :
+            node = i.getHost() + ":" + i.getPort() + ":" + i.getPubKey();
+            //oddelovac parametrov = ,
+//            node = serialize(i);
+            //Oddelovac klientov = ;
+            message = node + ";"  + message;
+        }
+        System.out.println(message);
         return null;
+    }
+
+    private String serialize(Object toSerialize) {
+        try {
+            return objectMapper.writeValueAsString(toSerialize);
+        } catch (JsonProcessingException e) {
+            Logger.getInstance().error("Could not serialize value", e);
+            throw new RuntimeException(e);
+        }
     }
 
 }
