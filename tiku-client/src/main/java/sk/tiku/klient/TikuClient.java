@@ -223,6 +223,7 @@ public class TikuClient {
     //fetch - give client list
     private String fetch(MessageData data, byte[] encryptionKey) {
         //FIXME
+        //zobrat message data, odsifrovat, postupne citat a vytvarat ?hashmapu/linkedlist? klientov - host, port, kluc na komunikaciu
         return null;
     }
 

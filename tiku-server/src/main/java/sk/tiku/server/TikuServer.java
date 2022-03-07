@@ -167,9 +167,9 @@ public class TikuServer {
 //            System.out.println(i.getHost());//            System.out.println(i.getPort());//            System.out.println(i.getPubKey());
             //DVA SPOSOBY
             //oddelovac parametrov = :
-            node = i.getHost() + ":" + i.getPort() + ":" + i.getPubKey();
+//            node = i.getHost() + ":" + i.getPort() + ":" + i.getPubKey();
             //oddelovac parametrov = ,
-//            node = serialize(i);
+            node = serialize(i);
             //Oddelovac klientov = ;
             message = node + ";"  + message;
         }
