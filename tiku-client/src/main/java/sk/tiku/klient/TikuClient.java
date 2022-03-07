@@ -119,9 +119,8 @@ public class TikuClient {
                 if (nextLine.equalsIgnoreCase("s")) {
                     System.out.println("Type URL: ");
                     String url = scanner.nextLine();
-                    //System.out.println("FIXME! " + url);
-                    //FIXME 2. na server poslat  zasifrovanu spravu daj klientov MessageType.GET_RELAY
-                    // nezabudni ze odpoved zo server pride zasifrovana
+                    //Na server sa posle  zasifrovana sprava daj klientov MessageType.GET_RELAY
+                    //odpoved zo servera pride zasifrovana
                     String nodeResponse = "odpoved";
                     MessageData getRelayMessageData = new MessageData();
                     getRelayMessageData.setType(MessageType.GET_RELAY);
@@ -133,12 +132,12 @@ public class TikuClient {
                     serializedMessage = serialize(getRelayMessageData);
                     String encryptedMessage = encryptionService.encrypt(serializedMessage, serverEncryptionKey);
 
-                    //LOGOUT EVENT IS ENCRYPTED
+                    //GET_RELAY EVENT IS ENCRYPTED
                     String pubKey = Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded());
                     nodeResponse = socketClient.send(this.serverHost, this.serverPort, new CommunicationMessage(encryptedMessage, pubKey));
 
-
-
+                    System.out.println(nodeResponse);
+                    System.out.println("FIXME! " + url);
 //                    String nodeResponse = "odpoved";
 
 //                    List<TikuNode> nodeList = deserialize(nodeResponse, new TypeReference<>() {
