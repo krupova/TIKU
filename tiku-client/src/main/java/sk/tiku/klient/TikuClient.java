@@ -89,8 +89,6 @@ public class TikuClient {
 
             //GENERATE DH KEY PAIR FOR USE WITH OTHER NODES
             localDhKeyPair = DiffieHellmanService.generateKeyPair(null);
-            //GENERATE DH KEY PAIR FOR USE WITH SERVER
-            serverDhKeyPair = DiffieHellmanService.generateKeyPair(null);
             //START LOCAL NODE LISTENING
             SocketServer socketServer = new SocketServer(this.localPort);
             socketServer.start(this::onMessage);
@@ -103,7 +101,7 @@ public class TikuClient {
             loginMessageData.setPayload(Map.of(
                     TikuMessageTypeParams.LOGIN_ARG_HOST, socketServer.getHost(),
                     TikuMessageTypeParams.LOGIN_ARG_PORT, String.valueOf(this.localPort),
-                    TikuMessageTypeParams.LOGIN_ARG_PUBKEY, Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded())
+                    TikuMessageTypeParams.LOGIN_ARG_PUBKEY, Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded())
             ));
             String serializedMessage = serialize(loginMessageData);
 
@@ -179,7 +177,7 @@ public class TikuClient {
             PublicKey serverPublicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(response));
             KeyPair keyPairForServer = DiffieHellmanService.generateKeyPair(((DHPublicKey) serverPublicKey).getParams());
             KeyAgreement serverKeyAgreement = DiffieHellmanService.initializeAgreement(keyPairForServer.getPrivate());
-            serverKeyAgreement.doPhase(keyPairForServer.getPublic(), true);
+            serverKeyAgreement.doPhase(serverPublicKey, true);
             serverDhKeyPair = keyPairForServer;
             //serverDhKeyPair = DiffieHellmanService.generateKeyPair(null);
             serverEncryptionKey = serverKeyAgreement.generateSecret();
