@@ -114,15 +114,32 @@ public class TikuClient {
             Scanner scanner = new Scanner(System.in);
             String nextLine;
             do {
-                System.out.printf("Type %n'q' to exit%n's' to send message using tiku network%n");
+                System.out.printf("Type %n'q' to exit %n's' to comunicate using tiku network%n");
                 nextLine = scanner.nextLine();
                 if (nextLine.equalsIgnoreCase("s")) {
-                    System.out.println("URL: ");
+                    System.out.println("Type URL: ");
                     String url = scanner.nextLine();
-                    System.out.println("FIXME! " + url);
+                    //System.out.println("FIXME! " + url);
                     //FIXME 2. na server poslat  zasifrovanu spravu daj klientov MessageType.GET_RELAY
                     // nezabudni ze odpoved zo server pride zasifrovana
                     String nodeResponse = "odpoved";
+                    MessageData getRelayMessageData = new MessageData();
+                    getRelayMessageData.setType(MessageType.GET_RELAY);
+                    getRelayMessageData.setPayload(Map.of(
+                            TikuMessageTypeParams.LOGOUT_ARG_HOST, socketServer.getHost(),
+                            TikuMessageTypeParams.LOGOUT_ARG_PORT, String.valueOf(this.localPort),
+                            TikuMessageTypeParams.LOGOUT_ARG_PUBKEY, Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded())
+                    ));
+                    serializedMessage = serialize(getRelayMessageData);
+                    String encryptedMessage = encryptionService.encrypt(serializedMessage, serverEncryptionKey);
+
+                    //LOGOUT EVENT IS ENCRYPTED
+                    String pubKey = Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded());
+                    nodeResponse = socketClient.send(this.serverHost, this.serverPort, new CommunicationMessage(encryptedMessage, pubKey));
+
+
+
+//                    String nodeResponse = "odpoved";
 
 //                    List<TikuNode> nodeList = deserialize(nodeResponse, new TypeReference<>() {
 //                    });
@@ -146,7 +163,7 @@ public class TikuClient {
                 //}
             } while (!nextLine.equalsIgnoreCase("q"));
             //LOGOUT
-            //FIXME: 1. Logout from tiku-server - sifrovat pomocou encryption service
+            //Logout from tiku-server - sifrovat pomocou encryption service
             //zasifrovat a odoslat spravu logout na server
             MessageData logoutMessageData = new MessageData();
             logoutMessageData.setType(MessageType.LOGOUT);
@@ -221,7 +238,8 @@ public class TikuClient {
     //fetch - give client list
     private String fetch(MessageData data, byte[] encryptionKey) {
         //FIXME
-        //zobrat message data, odsifrovat, postupne citat a vytvarat ?hashmapu/linkedlist? klientov - host, port, kluc na komunikaciu
+        //zobrat message data, odsifrovat, postupne citat a vytvarat ?array/linkedlist? klientov - host, port, kluc na komunikaciu
+
         return null;
     }
 

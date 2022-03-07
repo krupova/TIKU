@@ -90,17 +90,19 @@ public class TikuServer {
 
     private String onMessage(CommunicationMessage message) {
         String messageData;
+        PublicKey publicKey; //klientov na server
+        byte[] encryptionKey = null; //vypocitany sifrovaci/desifrovaci klient-server
         if (message.getPubkey() == null) {
             //LOGIN MESSAGE IS NOT ENCRYPTED
             messageData = message.getEncryptedData();
         } else {
             //GET DECRYPTION KEY
             KeyAgreement keyAgreement = DiffieHellmanService.initializeAgreement(dhKeyPair.getPrivate());
-            PublicKey publicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(message.getPubkey()));
+            publicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(message.getPubkey()));
             //System.out.println(publicKey);
             try {
                 keyAgreement.doPhase(publicKey, true);
-                byte[] encryptionKey = keyAgreement.generateSecret();
+                encryptionKey = keyAgreement.generateSecret();
                 messageData = encryptionService.decrypt(message.getEncryptedData(), encryptionKey);
             } catch (InvalidKeyException e) {
                 Logger.getInstance().error("Could not agree on encryption key", e);
@@ -117,7 +119,7 @@ public class TikuServer {
             return switch (data.getType()) {
                 case LOGIN -> loginClient(data);
                 case LOGOUT -> logoutClient(data);
-                case GET_RELAY -> getRelay();
+                case GET_RELAY -> getRelay(encryptionKey);
                 //case GET_RELAY -> getRelay(data);
                 default -> throw new IllegalStateException("Unknown message type: " + data);
             };
@@ -128,7 +130,7 @@ public class TikuServer {
     }
 
     private String loginClient(MessageData data) {
-        //FIXME: Osetrit chybajuce parametre
+        //Osetrit chybajuce parametre
         //PARSE ARGUMENTS
         TikuNode tn = new TikuNode(
                 data.getPayload().get(TikuMessageTypeParams.LOGIN_ARG_HOST),
@@ -138,15 +140,15 @@ public class TikuServer {
         //ADD NODE TO MAP
         String nodeId = String.format("%s_%5d", tn.getHost(), tn.getPort());
         loggedInClients.put(nodeId, tn);
-        getRelay();
+        //getRelay();
         return Base64.getEncoder().encodeToString(dhKeyPair.getPublic().getEncoded());
     }
 
     private String logoutClient(MessageData data) {
-        //FIXME: Osetrit chybajuce parametre
-        //FIXME: Osetrit nejak aby bolo zarucene, ze nemoze niekto odhlasit len tak hocijakeho klienta
-        // dalo by sa to mozno spravit tak, ze login okrem vlastneho verejneho kluca odpovie aj nejakym nahodne
-        // vygenerovanym tokenom (ktory uz bude zasifrovany). Pre logout ho bude musiet node poslat
+        //Osetrit chybajuce parametre
+        //Osetrit nejak aby bolo zarucene, ze nemoze niekto odhlasit len tak hocijakeho klienta
+        //dalo by sa to mozno spravit tak, ze login okrem vlastneho verejneho kluca odpovie aj nejakym nahodne
+        //vygenerovanym tokenom (ktory uz bude zasifrovany). Pre logout ho bude musiet node poslat
         //desifrovat a odobrat klienta z mapy
         String nodeId = String.format(
                 "%s_%5d",
@@ -158,23 +160,27 @@ public class TikuServer {
     }
 
     //metoda da klientov, ktory su schopni komunikovat
-    //MessageData data ako parameter
-    private String getRelay() {
-        //FIXME: Naimplementovat
+    //MessageData data ako parameter ak by sme chceli urcovat pocet klientov - 3 vymenit za data
+    private String getRelay(byte[] encryptionKey) {
         String message = "";
-        String node = "";
+        String node;
+        int count = 0;
         for (TikuNode i : loggedInClients.values()){
 //            System.out.println(i.getHost());//            System.out.println(i.getPort());//            System.out.println(i.getPubKey());
-            //DVA SPOSOBY
-            //oddelovac parametrov = :
-//            node = i.getHost() + ":" + i.getPort() + ":" + i.getPubKey();
+            //DVA SPOSOBY: 1-//oddelovac parametrov = ://            node = i.getHost() + ":" + i.getPort() + ":" + i.getPubKey();
             //oddelovac parametrov = ,
             node = serialize(i);
             //Oddelovac klientov = ;
             message = node + ";"  + message;
+            count++;
+            if (count == 3)
+                break;
         }
-        System.out.println(message);
-        return null;
+        //System.out.println(message);
+//        message = encryptionService.encrypt(message, encryptionKey);
+//        System.out.println(message);
+        //zakodovat message pomocou encryptionKey
+        return encryptionService.encrypt(message, encryptionKey);
     }
 
     private String serialize(Object toSerialize) {
