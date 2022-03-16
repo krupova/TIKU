@@ -31,4 +31,24 @@ public class TikuMessageTypeParams {
      * Logout argument - public key
      */
     public static final String LOGOUT_ARG_PUBKEY = "LOGOUT_ARG_PUBKEY";
+
+    /**
+     * Fetch argument - url value
+     */
+    public static final String FETCH_ARG_URL = "FETCH_ARG_URL";
+
+    /**
+     * Relay next argument - message
+     */
+    public static final String RELAY_NEXT_ARG_MESSAGE = "RELAY_NEXT_ARG_MESSAGE";
+
+    /**
+     * Relay next argument - message
+     */
+    public static final String RELAY_NEXT_ARG_IP = "RELAY_NEXT_ARG_IP";
+
+    /**
+     * Relay next argument - message
+     */
+    public static final String RELAY_NEXT_ARG_PORT = "RELAY_NEXT_ARG_PORT";
 }

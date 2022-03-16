@@ -136,30 +136,87 @@ public class TikuClient {
                     String pubKey = Base64.getEncoder().encodeToString(serverDhKeyPair.getPublic().getEncoded());
                     nodeResponse = socketClient.send(this.serverHost, this.serverPort, new CommunicationMessage(encryptedMessage, pubKey));
 
-                    System.out.println(nodeResponse);
-                    System.out.println("FIXME! " + url);
-//                    String nodeResponse = "odpoved";
+                    Logger.getInstance().debug("nodeResponse: "+nodeResponse);
+                    //MessageData data = objectMapper.readValue(nodeResponse, MessageData.class);
 
-//                    List<TikuNode> nodeList = deserialize(nodeResponse, new TypeReference<>() {
-//                    });
+//                    String nodeResponse = "odpoved";
+                    String decryptedMessage = encryptionService.decrypt(nodeResponse, serverEncryptionKey);
+                    Logger.getInstance().debug("decryptedMessage: "+decryptedMessage);
+                    List<TikuNode> nodeList = deserialize(decryptedMessage, new TypeReference<>() {
+                    });
+                    Logger.getInstance().debug("nodeList: "+nodeList.get(0));
+
+                    System.out.println("FIXME! " + url);
 //
 //                    Collections.reverse(nodeList);
                     //for (TikuNode client : nodeList) {
 
+//FIXME potrebujes urobit cibulu
 
-                    //FIXME potrebujes urobit cibulu
-//                    MessageData fetchMessageData = new MessageData();
-//                    fetchMessageData.setType(MessageType.FETCH);
-//                    fetchMessageData.setPayload(Map.of(
-//                            TikuMessageTypeParams.FETCH_ARG_URL, url
-//                    ));
-//                    String sm = serialize(fetchMessageData);
-//                    String zas1 - this.encryptionService.encrypt(sm, klucPoslednehoKlienta);
+                    //podla poctu klientov spravim
+                    String sprava = "";
+                    int pocetKlientov = nodeList.size() - 1;
+//                    1. Vygeneruje spravu FETCH. V parametroch su instrukcie co ma fetchnut.
+                    MessageData fetchMessageData = new MessageData();
+                    fetchMessageData.setType(MessageType.FETCH);
+                    fetchMessageData.setPayload(Map.of(
+                            TikuMessageTypeParams.FETCH_ARG_URL, url
+                    ));
+                    //2. Fecth spravu zoserializuje a zasifruje klucom posledneho nodu. (S1)
+                    String sm = serialize(fetchMessageData);
+                    sprava = this.encryptionService.encrypt(sm, nodeList.get(pocetKlientov).getPubKey());
+                    for (int i = pocetKlientov; i >= 1; i--) {
+                        //vyberat z listu - podla toho urcovat pordie klucov
+                        //dodat erte asi udaje o klientovi
+                        //sprava = this.encryptionService.encrypt(sm, nodeList.get(i).getPubKey()) + sprava;
+
+//                    3.  Vygeneruje sa sprava RELAY_NEXT. V parametroch je sprava S1, adresa a port posledneho nodu.
+                        MessageData relayNextMessageData = new MessageData();
+                        relayNextMessageData.setType(MessageType.RELAY_NEXT);
+                        relayNextMessageData.setPayload(Map.of(
+                                TikuMessageTypeParams.RELAY_NEXT_ARG_MESSAGE, sprava,
+                                TikuMessageTypeParams.RELAY_NEXT_ARG_IP, nodeList.get(i).getHost(),
+                                TikuMessageTypeParams.RELAY_NEXT_ARG_PORT, String.valueOf(nodeList.get(i).getPort())
+                        ));
+                        sm = serialize(relayNextMessageData);
+//                      4. RELAY_NEXT zasifruje klucom predposledneho nodu a vznikne sprava S2.
+                        sprava = this.encryptionService.encrypt(sm, nodeList.get(i-1).getPubKey());
+//                    5. Tento for pokracuje dalej v generovani RELAY_NEXT sprav. Vzdy sifruje klucom nodu n a do parametrov da spravu ktoru uz ma a adresu n+1 nodu. Postupne vznikne sprava Sn, ktoru zasifruje klucom prveho nodu.
+                    }
+                    String sprava2 = this.encryptionService.decrypt(sprava, nodeList.get(0).getPubKey());
+                    Logger.getInstance().debug("decrypt pokus: "+sprava2);
+
+//                    String nodeId = String.format(
+//                            "%s_%5d",
+//                            data.getPayload().get(TikuMessageTypeParams.LOGOUT_ARG_HOST),
+//                            Integer.parseInt(data.getPayload().get(TikuMessageTypeParams.LOGOUT_ARG_PORT))
+//                    );
+
+
+//                    6. Spravu Sn, posles prvemu nodu.
+                    String pubKeyLocal = Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded());
+//                    nodeResponse = socketClient.send(nodeList.get(0).getHost(), nodeList.get(0).getPort(), new CommunicationMessage(sprava, pubKeyLocal));
+//                    Logger.getInstance().debug("sprava klient klient: "+nodeResponse);
+                    //Funkcia relay next - relayNext(MessageData data, byte[] encryptionKey)
+                    
+//                    7. Prvy node vlastnym klucom desifruje spravu Sn a zisti, ze jej obsahom je RELAY_NEXT sprava pre Sn-1 (zasifrovana a on ju nevie desifrovat).
+//                    8. Prvy node preposle spravu druhemu nodovi a ako pubkey spravy nastavi verejny kluc prveho nodu (toto mi teraz napadlo, ze by mohol byt potencialny problem bezpecnosti. Porozmyslame potom ako by to mohlo byt riesene. Mozno by mohol klient pouzivat inu pre prijmanie ten klucovy par, ktory tam je a pre odosielanie si vzdy vygeneruje tolko klucovych parov, kolko je klientov, ktorym ide posielat. Ale to sa da aj potom asi doriesit).
+//                    9. Sprava takymto sposobom cestuje sietou az k poslednemu nodu, kde je z nej uz len sprava S1
+//                    10. Node po desifrovani zisti, ze tam je sprava FETCH
+//                    11. Urobi FETCH a odpoved zasifruje rovnakym klucom akym spravu desifroval. Vznikne odpoved O1
+//                    12. Posledny node vrati O1 predposlednemu nodu.
+//                    13. Predposledny node ju zasifruje vlastnym klucom, ktory pouzil na desifrovanie spravy S2 a vznikne O2, ktoru vrati nodu pred nim.
+//                    14. Zasifrovana odpoved On sa takymto sposobom dostane az na klienta, ktory zacal komunikaciu.
+//                    15. Klient musi spravu desifrovat klucmi, ktorymi sifroval spravy Sn az S1 (v rovnakom poradi. Po desifrovani vsetkymi klucmi v spravnom poradi dostane odpoved, ktoru posledny node ziskal pomocou vykonania FETCH-u
+//                    15. Zaroven je zarucene, ze sprava presla vsetkymi nodami v spravnom poradi (lebo inak by niektoru spravu nedel desifrovat)
+
+
                 }
                 //FIXME dalej budujes RELAY_NEXT spravy pre dalsich klientov
                 // posles prvemu klientovi
                 //odpoved treba cibulovo desifrovat
                 //}
+
             } while (!nextLine.equalsIgnoreCase("q"));
             //LOGOUT
             //Logout from tiku-server - sifrovat pomocou encryption service
@@ -234,17 +291,17 @@ public class TikuClient {
         }
     }
 
-    //fetch - give client list
+    //fetch - get message from url
     private String fetch(MessageData data, byte[] encryptionKey) {
         //FIXME
-        //zobrat message data, odsifrovat, postupne citat a vytvarat ?array/linkedlist? klientov - host, port, kluc na komunikaciu
 
         return null;
     }
 
-    //relayNext - give next client in list
+    //relayNext - send message to next client
     private String relayNext(MessageData data, byte[] encryptionKey) {
         //FIXME
+        Logger.getInstance().debug("sprava klient klientovi" + data);
 
         return null;
     }

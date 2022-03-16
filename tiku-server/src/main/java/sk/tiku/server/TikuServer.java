@@ -165,20 +165,22 @@ public class TikuServer {
         String message = "";
         String node;
         int count = 0;
-        for (TikuNode i : loggedInClients.values()){
+        List<TikuNode> nodeList = new ArrayList<>();
+        for (TikuNode tn : loggedInClients.values()){
 //            System.out.println(i.getHost());//            System.out.println(i.getPort());//            System.out.println(i.getPubKey());
             //DVA SPOSOBY: 1-//oddelovac parametrov = ://            node = i.getHost() + ":" + i.getPort() + ":" + i.getPubKey();
             //oddelovac parametrov = ,
-            node = serialize(i);
-            //Oddelovac klientov = ;
-            message = node + ";"  + message;
+            nodeList.add(tn);
+
             count++;
             if (count == 3)
                 break;
         }
+        message = serialize(nodeList);
         //System.out.println(message);
 //        message = encryptionService.encrypt(message, encryptionKey);
 //        System.out.println(message);
+        Logger.getInstance().debug(message);
         //zakodovat message pomocou encryptionKey
         return encryptionService.encrypt(message, encryptionKey);
     }
