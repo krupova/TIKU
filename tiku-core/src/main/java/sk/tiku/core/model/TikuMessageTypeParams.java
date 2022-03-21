@@ -43,12 +43,17 @@ public class TikuMessageTypeParams {
     public static final String RELAY_NEXT_ARG_MESSAGE = "RELAY_NEXT_ARG_MESSAGE";
 
     /**
-     * Relay next argument - message
+     * Relay next argument - ip
      */
     public static final String RELAY_NEXT_ARG_IP = "RELAY_NEXT_ARG_IP";
 
     /**
-     * Relay next argument - message
+     * Relay next argument - port
      */
     public static final String RELAY_NEXT_ARG_PORT = "RELAY_NEXT_ARG_PORT";
+
+    /**
+     * Relay next argument - pobKey
+     */
+    public static final String RELAY_NEXT_ARG_PUBKEY = "RELAY_NEXT_ARG_PUBKEY";
 }

@@ -11,6 +11,7 @@ import sk.tiku.core.logging.Logger;
 import sk.tiku.core.model.*;
 import sk.tiku.core.networking.SocketClient;
 import sk.tiku.core.networking.SocketServer;
+import sk.tiku.core.networking.TikuHttpClient;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.interfaces.DHPublicKey;
@@ -30,6 +31,7 @@ public class TikuClient {
     private String serverHost;
     private SocketClient socketClient;
     private byte[] serverEncryptionKey;
+    private final TikuHttpClient tikuHttpClient = new TikuHttpClient();
 
     public static void main(String[] args) {
         new TikuClient().run(args);
@@ -150,7 +152,20 @@ public class TikuClient {
 //
 //                    Collections.reverse(nodeList);
                     //for (TikuNode client : nodeList) {
-
+                    List<Map.Entry<byte[],KeyPair>> encryptionKeys = new ArrayList<>(nodeList.size());
+                    for (TikuNode client : nodeList){
+                        try {
+                            PublicKey nodePublicKey = DiffieHellmanService.parsePublicKey(Base64.getDecoder().decode(client.getPubKey()));
+                            KeyPair keyPairForKlient = DiffieHellmanService.generateKeyPair(((DHPublicKey) nodePublicKey).getParams());
+                            KeyAgreement clientKeyAgreement = DiffieHellmanService.initializeAgreement(keyPairForKlient.getPrivate());
+                            clientKeyAgreement.doPhase(nodePublicKey, true);
+                            byte[] klientEncryptionKey = clientKeyAgreement.generateSecret();
+                            encryptionKeys.add(new AbstractMap.SimpleEntry<>(klientEncryptionKey,keyPairForKlient));
+                        } catch (InvalidKeyException e) {
+                            Logger.getInstance().error("Could not agree on server key", e);
+                            throw new RuntimeException(e);
+                        }
+                    }
 //FIXME potrebujes urobit cibulu
 
                     //podla poctu klientov spravim
@@ -164,7 +179,8 @@ public class TikuClient {
                     ));
                     //2. Fecth spravu zoserializuje a zasifruje klucom posledneho nodu. (S1)
                     String sm = serialize(fetchMessageData);
-                    sprava = this.encryptionService.encrypt(sm, nodeList.get(pocetKlientov).getPubKey());
+                    sprava = this.encryptionService.encrypt(sm, encryptionKeys.get(pocetKlientov).getKey());
+
                     for (int i = pocetKlientov; i >= 1; i--) {
                         //vyberat z listu - podla toho urcovat pordie klucov
                         //dodat erte asi udaje o klientovi
@@ -176,15 +192,14 @@ public class TikuClient {
                         relayNextMessageData.setPayload(Map.of(
                                 TikuMessageTypeParams.RELAY_NEXT_ARG_MESSAGE, sprava,
                                 TikuMessageTypeParams.RELAY_NEXT_ARG_IP, nodeList.get(i).getHost(),
-                                TikuMessageTypeParams.RELAY_NEXT_ARG_PORT, String.valueOf(nodeList.get(i).getPort())
+                                TikuMessageTypeParams.RELAY_NEXT_ARG_PORT, String.valueOf(nodeList.get(i).getPort()),
+                                TikuMessageTypeParams.RELAY_NEXT_ARG_PUBKEY, Base64.getEncoder().encodeToString(encryptionKeys.get(i).getValue().getPublic().getEncoded())
                         ));
                         sm = serialize(relayNextMessageData);
 //                      4. RELAY_NEXT zasifruje klucom predposledneho nodu a vznikne sprava S2.
-                        sprava = this.encryptionService.encrypt(sm, nodeList.get(i-1).getPubKey());
+                        sprava = this.encryptionService.encrypt(sm, encryptionKeys.get(i-1).getKey());
 //                    5. Tento for pokracuje dalej v generovani RELAY_NEXT sprav. Vzdy sifruje klucom nodu n a do parametrov da spravu ktoru uz ma a adresu n+1 nodu. Postupne vznikne sprava Sn, ktoru zasifruje klucom prveho nodu.
                     }
-                    String sprava2 = this.encryptionService.decrypt(sprava, nodeList.get(0).getPubKey());
-                    Logger.getInstance().debug("decrypt pokus: "+sprava2);
 
 //                    String nodeId = String.format(
 //                            "%s_%5d",
@@ -194,21 +209,21 @@ public class TikuClient {
 
 
 //                    6. Spravu Sn, posles prvemu nodu.
-                    String pubKeyLocal = Base64.getEncoder().encodeToString(localDhKeyPair.getPublic().getEncoded());
-//                    nodeResponse = socketClient.send(nodeList.get(0).getHost(), nodeList.get(0).getPort(), new CommunicationMessage(sprava, pubKeyLocal));
-//                    Logger.getInstance().debug("sprava klient klient: "+nodeResponse);
+                    String pubKeyForFirst = Base64.getEncoder().encodeToString(encryptionKeys.get(0).getValue().getPublic().getEncoded());
+                    nodeResponse = socketClient.send(nodeList.get(0).getHost(), nodeList.get(0).getPort(), new CommunicationMessage(sprava, pubKeyForFirst));
+                    Logger.getInstance().debug("sprava klient klient: "+nodeResponse);
+                    //Spravu od Klienta desifrujeme - ziskame finalnu odpoved co sme sa pytali, treba v cykle
+
+                    String finalMessage = nodeResponse;
+                    for (Map.Entry<byte[],KeyPair> eK : encryptionKeys) {
+
+                        finalMessage = encryptionService.decrypt(finalMessage, eK.getKey());
+                        Logger.getInstance().debug(finalMessage);
+                    }
+                    System.out.println(finalMessage);
                     //Funkcia relay next - relayNext(MessageData data, byte[] encryptionKey)
                     
-//                    7. Prvy node vlastnym klucom desifruje spravu Sn a zisti, ze jej obsahom je RELAY_NEXT sprava pre Sn-1 (zasifrovana a on ju nevie desifrovat).
-//                    8. Prvy node preposle spravu druhemu nodovi a ako pubkey spravy nastavi verejny kluc prveho nodu (toto mi teraz napadlo, ze by mohol byt potencialny problem bezpecnosti. Porozmyslame potom ako by to mohlo byt riesene. Mozno by mohol klient pouzivat inu pre prijmanie ten klucovy par, ktory tam je a pre odosielanie si vzdy vygeneruje tolko klucovych parov, kolko je klientov, ktorym ide posielat. Ale to sa da aj potom asi doriesit).
-//                    9. Sprava takymto sposobom cestuje sietou az k poslednemu nodu, kde je z nej uz len sprava S1
-//                    10. Node po desifrovani zisti, ze tam je sprava FETCH
-//                    11. Urobi FETCH a odpoved zasifruje rovnakym klucom akym spravu desifroval. Vznikne odpoved O1
-//                    12. Posledny node vrati O1 predposlednemu nodu.
-//                    13. Predposledny node ju zasifruje vlastnym klucom, ktory pouzil na desifrovanie spravy S2 a vznikne O2, ktoru vrati nodu pred nim.
-//                    14. Zasifrovana odpoved On sa takymto sposobom dostane az na klienta, ktory zacal komunikaciu.
-//                    15. Klient musi spravu desifrovat klucmi, ktorymi sifroval spravy Sn az S1 (v rovnakom poradi. Po desifrovani vsetkymi klucmi v spravnom poradi dostane odpoved, ktoru posledny node ziskal pomocou vykonania FETCH-u
-//                    15. Zaroven je zarucene, ze sprava presla vsetkymi nodami v spravnom poradi (lebo inak by niektoru spravu nedel desifrovat)
+
 
 
                 }
@@ -294,16 +309,36 @@ public class TikuClient {
     //fetch - get message from url
     private String fetch(MessageData data, byte[] encryptionKey) {
         //FIXME
-
-        return null;
+        //10.Node po desifrovani zisti, ze tam je sprava FETCH
+        ////                    11. Urobi FETCH a odpoved zasifruje rovnakym klucom akym spravu desifroval. Vznikne odpoved O1
+        ////                    12. Posledny node vrati O1 predposlednemu nodu.
+        ////                    13. Predposledny node ju zasifruje vlastnym klucom, ktory pouzil na desifrovanie spravy S2 a vznikne O2, ktoru vrati nodu pred nim.
+        ////                    14. Zasifrovana odpoved On sa takymto sposobom dostane az na klienta, ktory zacal komunikaciu.
+        ////                    15. Klient musi spravu desifrovat klucmi, ktorymi sifroval spravy Sn az S1 (v rovnakom poradi. Po desifrovani vsetkymi klucmi v spravnom poradi dostane odpoved, ktoru posledny node ziskal pomocou vykonania FETCH-u
+        ////                    15. Zaroven je zarucene, ze sprava presla vsetkymi nodami v spravnom poradi (lebo inak by niektoru spravu nedel desifrovat)
+        String message = tikuHttpClient.get(data.getPayload().get(TikuMessageTypeParams.FETCH_ARG_URL));
+        Logger.getInstance().debug("Web response> "+message);
+        return encryptionService.encrypt(message, encryptionKey);
     }
 
     //relayNext - send message to next client
     private String relayNext(MessageData data, byte[] encryptionKey) {
         //FIXME
         Logger.getInstance().debug("sprava klient klientovi" + data);
-
-        return null;
+        //            7. Prvy node vlastnym klucom desifruje spravu Sn a zisti, ze jej obsahom je RELAY_NEXT sprava pre Sn-1 (zasifrovana a on ju nevie desifrovat).
+//                    8. Prvy node preposle spravu druhemu nodovi a ako pubkey spravy nastavi verejny kluc prveho nodu
+//                    9. Sprava takymto sposobom cestuje sietou az k poslednemu nodu, kde je z nej uz len sprava S1
+        String pubKeyForAnother = data.getPayload().get(TikuMessageTypeParams.RELAY_NEXT_ARG_PUBKEY);
+        String nodeResponse = socketClient.send(
+                data.getPayload().get(TikuMessageTypeParams.RELAY_NEXT_ARG_IP),
+                Integer.parseInt(data.getPayload().get(TikuMessageTypeParams.RELAY_NEXT_ARG_PORT)),
+                new CommunicationMessage(
+                        data.getPayload().get(TikuMessageTypeParams.RELAY_NEXT_ARG_MESSAGE),
+                        pubKeyForAnother
+                )
+        );
+        Logger.getInstance().debug("sprava klient klient: "+ nodeResponse);
+        return encryptionService.encrypt(nodeResponse, encryptionKey);
     }
 
     //FIXME: Maybe move this to core to new Utils class
